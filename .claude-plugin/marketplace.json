@@ -1,0 +1,51 @@
+{
+  "name": "claude-code-cleanup-skills",
+  "owner": {
+    "name": "danhuaxiansheng",
+    "email": "danhuaxiansheng@users.noreply.github.com"
+  },
+  "metadata": {
+    "description": "Agent skills for code cleanup, dead-code audits, necessary-code review, and page-flow simplification",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "claude-code-cleanup-skills",
+      "description": "Collection of code cleanup skills for necessary-code audits, unused-code checks, and page-flow cleanup",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/necessary-code-audit",
+        "./skills/unused-code-audit",
+        "./skills/page-flow-cleanup-audit"
+      ]
+    },
+    {
+      "name": "necessary-code-audit",
+      "description": "Audit used code to decide whether wrappers, compatibility surfaces, stale APIs, defensive branches, defaults, or configs are still necessary",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/necessary-code-audit"
+      ]
+    },
+    {
+      "name": "unused-code-audit",
+      "description": "Prove whether files, exports, helpers, components, hooks, types, and directories still have live consumers before deletion",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/unused-code-audit"
+      ]
+    },
+    {
+      "name": "page-flow-cleanup-audit",
+      "description": "Clean page and feature flows by tracing state sources, queries, mutations, permissions, errors, and duplicated calculations",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/page-flow-cleanup-audit"
+      ]
+    }
+  ]
+}

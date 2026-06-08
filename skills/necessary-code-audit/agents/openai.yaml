@@ -1,0 +1,4 @@
+interface:
+  display_name: "Necessary Code Audit"
+  short_description: "Find used code that is no longer necessary."
+  default_prompt: "Use $necessary-code-audit to find used-but-unnecessary code, then remove meaningless wrappers, compatibility surfaces, defensive branches, stale APIs, and dead code while preserving real runtime constraints."

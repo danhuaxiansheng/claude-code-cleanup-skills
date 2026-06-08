@@ -1,0 +1,4 @@
+interface:
+  display_name: "Unused Code Audit"
+  short_description: "Prove whether code is still consumed."
+  default_prompt: "Use $unused-code-audit to prove whether a directory, file, function, component, type, or exported symbol still has consumers before deleting it."

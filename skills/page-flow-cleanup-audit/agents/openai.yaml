@@ -1,4 +1,4 @@
 interface:
-  display_name: "Page Flow Cleanup Audit"
-  short_description: "Clean up page and feature flow logic."
-  default_prompt: "Use $page-flow-cleanup-audit to inspect this page or feature flow, identify source-of-truth issues, classify defensive UI code, and clean it up without removing real loading, empty, error, or permission states."
+  display_name: "页面流程清理审计"
+  short_description: "清理页面和功能流逻辑。"
+  default_prompt: "使用 $page-flow-cleanup-audit 检查页面或功能流，识别 source-of-truth 问题，分类防御 UI 代码，并在不移除真实 loading、empty、error 或 permission 状态的前提下清理。"

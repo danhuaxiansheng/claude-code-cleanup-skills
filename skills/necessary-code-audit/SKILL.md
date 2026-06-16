@@ -1,119 +1,164 @@
 ---
 name: necessary-code-audit
 description: |
-  Audit whether current code truly needs a directory, file, export, API, wrapper, compatibility layer, defensive branch, fallback, default value, or config before simplifying or deleting it. Use for agent-assisted code cleanup, refactoring, technical-debt reduction, used-but-unnecessary code, legacy cleanup, stale public APIs, meaningless wrappers, defensive-code removal, no-backward-compatibility cleanup, deep review, continued cleanup, or "is this still necessary?" requests.
-license: MIT
-metadata:
-  author: danhuaxiansheng
-  version: "0.1.0"
+  审计“仍有消费者的代码”是否真的需要继续存在，重点是 wrapper/facade、兼容层、陈旧公共 API、防御分支、fallback、默认值、配置、重复来源和假设性扩展点。用于已被使用但必要性不足的代码、遗留兼容清理、无意义包装、防御代码移除、无兼容要求清理、深度必要性检查，以及“这个还需要吗？”类请求；不要把它作为纯 unused/dead-code 证明工具。
 ---
 
-# Necessary Code Audit
+# 必要性代码审计
 
-## Principle
+## 原则
 
-Optimize for current necessity, not only for zero references. A symbol can be used and still be unnecessary when it is only a wrapper, compatibility surface, defensive branch, stale public API, or speculative extension point.
+优化目标是“当前是否必要”，不只是“是否零引用”。一个符号即使仍有调用，也可能只是包装层、兼容面、防御分支、陈旧公共 API 或假设性的扩展点。
 
-The core trigger is: "this code is used, but does current code really need it?"
+核心问题是：这个代码被用了，但当前代码真的还需要它吗？
 
-Do not delete real runtime constraints. Keep branches that represent actual loading, empty, error, permission, lifecycle, browser, SSR, quota, external input, or domain-nullable states.
+不要删除真实运行约束。必须保留代表加载、空数据、错误、权限、生命周期、浏览器、SSR、配额、外部输入或领域可空状态的分支。
 
-## Skill System
+不要把普通注释当作清理目标。只有注释已经过期、错误、误导，或因为代码删除而孤立时，才删除或改写注释。
 
-This skill is the primary entrypoint for a three-skill cleanup system:
+不要在发现第一个明显清理点后停止。对于用户指定的目录或功能，必须先审完整个作用域，再报告“没有更多”或要求用户继续。
 
-- Use `necessary-code-audit` to decide whether used code is still necessary.
-- Use `unused-code-audit` to prove whether deletion candidates are still consumed.
-- Use `page-flow-cleanup-audit` when the target includes page state, query/mutation flow, permissions, error states, stores, or user-visible behavior.
+## 技能协作
 
-Do not require repository-specific graph tools or project-specific agent skills. Use the best local tools available in the environment, such as file listings, language tooling, typecheck/build commands, manifests, import graphs, and text search.
+本技能是三个清理技能的主入口：
 
-This skill is useful for any AI coding agent or human reviewer that can read Markdown instructions. Do not assume a specific AI product.
+- 用 `necessary-code-audit` 判断“已被使用的代码是否仍然必要”。
+- 用 `unused-code-audit` 证明删除候选是否仍有消费者。
+- 目标涉及页面状态、查询/变更流、权限、错误或用户可见行为时，用 `page-flow-cleanup-audit`。
 
-## Baseline
+不依赖仓库专属图工具。优先使用当前环境可用的文件列表、语言工具、构建/类型检查、manifest、导入图和文本搜索。
 
-Start with:
+## 边界
+
+本技能只回答“即使有人在用，这个抽象/行为/API 是否仍然必要？”。
+
+适合本技能：
+
+- 有调用方的 wrapper、facade、兼容别名、默认值、fallback、可选字段或配置。
+- 多处调用但调用方可以直接使用更基础 primitive 的 helper。
+- 公共 API 仍被 import，但只是历史兼容面或陈旧入口。
+- 防御分支、try/catch、可选链、`as any` 或旧格式兼容是否代表真实约束。
+- 两份 source of truth、重复 cache/store/query/派生计算是否需要合并。
+
+不适合本技能单独完成：
+
+- 只想证明某文件、导出或类型是否零消费者；改用 `unused-code-audit`。
+- 删除没有调用方的死代码；先用 `unused-code-audit` 完成消费者证明。
+- 页面状态、权限、查询/变更链路或用户可见流程清理；改用 `page-flow-cleanup-audit`。
+
+协作规则：
+
+- 若候选看起来零消费者，暂停必要性判断，转为 `unused-code-audit` 的删除证明。
+- 若候选仍有消费者，再继续判断是否必要、是否能替换调用方、是否应收缩公共面。
+- `unused-code-audit` 的结论只能说明“能否安全删除未使用项”，不能替代本技能对“已使用但不必要”的判断。
+
+## 基线
+
+开始时必须收集：
 
 - `git status --short --untracked-files=all`
 - `git diff --name-status -- <scope>`
 - `git diff --cached --name-status -- <scope>`
-- File inventory for the target scope, preferably with a fast file search tool.
-- Current imports, exports, public entrypoints, and direct consumers for the target scope.
+- 目标作用域文件清单，优先用 `rg --files <scope>`。
+- 当前导入、导出、公共入口和直接消费者。
+- 作用域符号清单：导出的函数/类型/常量、非导出 helper、配置字段和重复字面量。
+- 影响面图：同包消费者、包入口、直接 app/package import，以及 manifest 中的下游包。
 
-Do not assume staged changes are yours. Work with dirty files without reverting unrelated changes.
+不要假设 staged 或 dirty 变更是自己造成的。不要回滚无关变更。
 
-## Candidate Classes
+## 深度门槛
 
-Classify every meaningful file, export, method, field, option, fallback, and branch in the target scope:
+编辑前和完成前都必须完成这些检查：
 
-- `current necessity`: required by current product behavior or platform/runtime constraints.
-- `direct replacement`: wrapper or facade whose call sites can call the underlying primitive directly.
-- `compatibility surface`: old export, optional field, default value, alias, factory, config, or public type kept for external or historical consumers.
-- `defensive branch`: try/catch, fallback, optional chaining, null guard, feature detection, or corrupted-data handling.
-- `speculative capability`: API surface with no current caller or only hypothetical future value.
-- `duplicated source`: second cache, store, query, invalidation path, state source, or derived calculation.
-- `dead code`: no real consumer after re-exports, dynamic references, and framework entrypoints are ruled out.
-- `real constraint`: SSR, browser storage availability, quota, permissions, loading/error/empty lifecycle, external input, or valid optional domain state.
+1. 盘点作用域内每个文件和有意义的导出/helper，而不是只看用户最先提到的文件。
+2. 将候选分成“零消费者候选”和“有消费者但可能不必要候选”；零消费者候选交给 `unused-code-audit` 证明。
+3. 对有消费者的候选，至少检查每个消费区域的一个代表调用点，再判断抽象是否必要。
+4. 对可替换候选，确认调用方能否直接使用现有 primitive，以及替换后会孤立哪些 export/helper/type。
+5. 对公共 API 变更，确认 package exports 以及能覆盖变更面的下游包/app typecheck。
+6. 每批清理后重新搜索残留名称、旧 import path、重复字面量和新孤立 helper。
+7. 只有剩余候选都已归类为真实约束、刻意保留的公共 API，或超出当前请求风险范围时，才停止。
 
-## Necessity Questions
+如果这些检查发现更多工作，要在同一轮继续处理。不要要求用户说“继续深度检查”才推进。
 
-For each candidate, answer before editing:
+## 候选分类
 
-1. Does current code truly need this behavior?
-2. If it has callers, do those callers need the abstraction, or can they call a simpler existing primitive?
-3. Is this protecting a real runtime/domain state, or only historical compatibility/speculation?
-4. If backward compatibility is out of scope, can the public type/export/config be removed?
-5. Does deleting it change current product behavior? If yes, is that intended by the request?
-6. What residual methods, imports, exports, comments, tests, or docs become meaningless after deleting it?
+对目标作用域中的每个有意义文件、导出、方法、字段、选项、fallback 和分支分类：
 
-Push back when the user's deletion target is a real constraint, not defensive code.
+- `当前必要`：当前产品行为或平台/运行时约束需要。
+- `可直接替代`：调用方可以直接使用底层 primitive 的 wrapper/facade。
+- `兼容面`：为外部或历史消费者保留的旧导出、可选字段、默认值、别名、工厂、配置或公共类型。
+- `防御分支`：try/catch、fallback、可选链、空值保护、特性检测或脏数据处理。
+- `假设性能力`：没有当前调用方，或只有假想未来价值的 API 面。
+- `重复来源`：第二份 cache、store、query、invalidation 路径、状态源或派生计算。
+- `疑似死代码`：看起来没有真实消费者；不要在本技能内直接删除，转交 `unused-code-audit` 证明。
+- `真实约束`：SSR、浏览器存储可用性、配额、权限、加载/错误/空态生命周期、外部输入或合法领域可空状态。
+- `仅文档`：注释或文档。除非过期、误导或被代码变更孤立，否则保留。
 
-## Cleanup Order
+## 必要性问题
 
-1. Remove wrapper, facade, and compatibility layers first.
-2. Replace call sites with direct primitives.
-3. Remove newly orphaned methods, helper functions, imports, exports, and public types.
-4. Remove unused config keys, default values, optional fields, feature flags, and old comments.
-5. Remove defensive branches that only hide impossible or outdated states.
-6. Re-run residual searches after each source-of-truth or public API removal.
+每个候选在编辑前回答：
 
-Avoid creating new abstractions to justify deleting old ones.
+1. 当前代码真的需要这个行为吗？
+2. 如果它有调用方，调用方需要这个抽象吗，还是能直接调用现有 primitive？
+3. 它保护的是真实运行/领域状态，还是历史兼容/假设？
+4. 如果无需向后兼容，公共类型、导出或配置能否删除？
+5. 删除是否改变当前产品行为？如果会，这是否符合请求意图？
+6. 删除后哪些方法、import、export、注释、测试或文档会变得无意义？
 
-## Evidence
+当用户想删的其实是真实约束而非防御代码时，要明确指出。
 
-Use the available repository tools for structure:
+## 清理顺序
 
-- File inventory for the target directory or feature.
-- Import/export searches for wrappers, methods, and exported symbols.
-- Manifests, re-export files, framework conventions, generated files, and type declarations for public API impact.
-- Language-aware tooling when available, such as compiler diagnostics, test coverage, dependency analyzers, or IDE references.
+1. 先删除 wrapper、facade 和兼容层。
+2. 将调用点替换为直接 primitive。
+3. 删除新孤立的方法、helper、import、export 和公共类型。
+4. 删除无用配置 key、默认值、可选字段、feature flag 和因代码删除而孤立的旧注释。
+5. 删除只隐藏不可能或过期状态的防御分支。
+6. 每次删除来源或公共 API 后重新做残留搜索。
 
-Use fast text search for literal residuals:
+不要为了删除旧抽象而创建新抽象。
 
-- Removed file stems and import paths.
-- Removed symbol names and member names.
-- Compatibility phrases such as `legacy`, `deprecated`, `backward`, `compat`, `fallback`, `debug`, old-format comments, and commented-out code.
-- Defensive patterns such as `try`, `catch`, optional fields, optional chaining, `as any`, constant boolean parameters, and default config values.
+注释清理只是代码清理的附带动作。不要把“低价值注释”纳入清理顺序，除非它错误或已孤立。
 
-If an unused-export script or dependency analyzer is available in the current environment, use it as a candidate generator only. Treat automated output as leads, not proof.
+## 证据
 
-## Verification
+结构证据：
 
-Run the narrowest checks that cover the edited boundary:
+- 目标目录或功能的文件清单。
+- wrapper、方法和导出符号的 import/export 搜索。
+- manifest、re-export 文件、框架约定、生成文件和类型声明。
+- 可用时使用语言工具：编译诊断、测试覆盖、依赖分析或 IDE 引用。
+- 每个改动过的公共 helper 至少检查每个消费包/app 的一个代表调用点。
+- 根据真实导入图选择下游 package/app typecheck，而不是只检查定义包。
 
-- Defining module or library typecheck/build after public API changes.
-- Direct consumer package typecheck or narrow eslint.
-- Residual `rg` scans for removed symbols and old import paths.
-- `git diff --check -- <scope>` and, when staged changes exist, `git diff --cached --check -- <scope>`.
+文本残留搜索：
 
-If a broad typecheck fails, identify whether the failure is related to this cleanup or an existing unrelated dirty state.
+- 删除的文件 stem 和 import path。
+- 删除的符号名和成员名。
+- 兼容相关词：`legacy`、`deprecated`、`backward`、`compat`、`fallback`、`debug`、旧格式注释、注释掉的代码。
+- 防御模式：`try`、`catch`、可选字段、可选链、`as any`、恒定布尔参数、默认配置值。
+- 重复字面量和等价本地 helper，这可能说明共享 primitive 没被复用。
 
-## Report
+自动 unused-export 或依赖分析工具只能作为候选生成器。发现零消费者候选后，进入 `unused-code-audit` 的证明流程；本技能继续处理“仍被使用但不必要”的候选。
 
-Report:
+## 验证
 
-- Removed: wrappers, compatibility surfaces, defensive branches, stale public APIs, dead code, and direct replacements.
-- Kept: real runtime/domain constraints and why they are not meaningless defensive code.
-- Verified: commands, results, residual scans, and unrelated dirty files or unrelated failures.
+运行覆盖改动边界的最窄检查：
 
-Be explicit when the first-pass unused audit would miss something because it is used but unnecessary.
+- 公共 API 变更后，先跑定义模块或库的 typecheck/build。
+- 直接消费者 package 的 typecheck 或窄 eslint。
+- import、公共导出或共享校验/格式化行为变更时，跑下游 app/package typecheck。
+- 对删除符号和旧 import path 做残留 `rg`。
+- `git diff --check -- <scope>`；若有 staged 变更，也跑 `git diff --cached --check -- <scope>`。
+
+如果广义 typecheck 失败，要说明失败是否与本次清理相关。
+
+## 报告
+
+报告：
+
+- 已删除：wrapper、兼容面、防御分支、陈旧公共 API 和直接替代。
+- 已保留：真实运行/领域约束，以及为什么它不是无意义防御代码。
+- 已验证：命令、结果、残留搜索、无关 dirty 文件或无关失败。
+
+要明确说明哪些候选交给了 `unused-code-audit` 证明，哪些候选是“仍被使用但不再必要”并由本技能处理。

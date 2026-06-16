@@ -1,4 +1,4 @@
 interface:
-  display_name: "Unused Code Audit"
-  short_description: "Prove whether code is still consumed."
-  default_prompt: "Use $unused-code-audit to prove whether a directory, file, function, component, type, or exported symbol still has consumers before deleting it."
+  display_name: "未使用代码审计"
+  short_description: "证明代码是否仍有消费者。"
+  default_prompt: "使用 $unused-code-audit 在删除目录、文件、函数、组件、类型或导出符号前，证明它是否没有真实消费者；仍有消费者但可能不必要的代码交给 $necessary-code-audit。"

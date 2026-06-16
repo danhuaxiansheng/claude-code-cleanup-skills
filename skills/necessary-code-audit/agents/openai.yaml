@@ -1,4 +1,4 @@
 interface:
-  display_name: "Necessary Code Audit"
-  short_description: "Find used code that is no longer necessary."
-  default_prompt: "Use $necessary-code-audit to find used-but-unnecessary code, then remove meaningless wrappers, compatibility surfaces, defensive branches, stale APIs, and dead code while preserving real runtime constraints."
+  display_name: "必要性代码审计"
+  short_description: "找出仍被使用但不再必要的代码。"
+  default_prompt: "使用 $necessary-code-audit 查找仍被使用但不再必要的代码，并在保留真实运行约束的前提下删除无意义 wrapper、兼容面、防御分支和陈旧 API；零消费者死代码交给 $unused-code-audit 证明。"
